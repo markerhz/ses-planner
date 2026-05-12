@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SES Booking Planner</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;600&display=swap');
+
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --card: #21253a;
+    --border: #2e3350;
+    --accent: #4f8ef7;
+    --accent2: #f7c94f;
+    --red: #f74f4f;
+    --green: #4ff79e;
+    --text: #e8eaf6;
+    --muted: #7b82a8;
+    --font: 'IBM Plex Sans Thai', sans-serif;
+    --mono: 'IBM Plex Mono', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* HEADER */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 32px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .logo {
+    font-family: var(--mono);
+    font-weight: 600;
+    font-size: 18px;
+    color: var(--accent);
+    letter-spacing: 1px;
+  }
+
+  .logo span { color: var(--accent2); }
+
+  header .subtitle {
+    font-size: 12px;
+    color: var(--muted);
+    border-left: 1px solid var(--border);
+    padding-left: 16px;
+    margin-left: 4px;
+  }
+
+  /* LAYOUT */
+  .container { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
+
+  /* FORM CARD */
+  .form-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px;
+    margin-bottom: 24px;
+  }
+
+  .form-card h2 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .form-card h2::before {
+    content: '';
+    display: block;
+    width: 4px;
+    height: 16px;
+    background: var(--accent);
+    border-radius: 2px;
+  }
+
+  /* FORM GRID */
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+
+  label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  input, select {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 14px;
+    padding: 10px 14px;
+    transition: border-color .2s;
+    width: 100%;
+  }
+
+  input:focus, select:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+
+  select option { background: var(--card); }
+
+  /* MACHINE DISPLAY */
+  .machine-display {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-family: var(--mono);
+    font-size: 12px;
+    min-height: 42px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .machine-display.confirmed { border-color: var(--green); color: var(--green); }
+  .machine-display.warning  { border-color: var(--accent2); color: var(--accent2); }
+  .machine-display.empty    { color: var(--muted); font-style: italic; font-family: var(--font); }
+
+  /* BUTTONS */
+  .btn-row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
+
+  button {
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 600;
+    padding: 10px 22px;
+    transition: all .15s;
+  }
+
+  .btn-add {
+    background: var(--accent);
+    color: #fff;
+  }
+  .btn-add:hover { background: #6ba3ff; }
+
+  .btn-clear {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+  }
+  .btn-clear:hover { border-color: var(--red); color: var(--red); }
+
+  .btn-export {
+    background: var(--green);
+    color: #0f1117;
+    padding: 12px 32px;
+    font-size: 15px;
+  }
+  .btn-export:hover { background: #6fffe0; }
+  .btn-export:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; }
+
+  /* TABLE */
+  .table-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 24px;
+  }
+
+  .table-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .table-header h2 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .count-badge {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 12px;
+    font-family: var(--mono);
+    color: var(--accent);
+  }
+
+  .table-wrap { overflow-x: auto; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  thead th {
+    background: var(--card);
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    padding: 12px 16px;
+    text-align: left;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  tbody tr {
+    border-top: 1px solid var(--border);
+    transition: background .15s;
+  }
+
+  tbody tr:hover { background: var(--card); }
+
+  tbody td {
+    padding: 12px 16px;
+    vertical-align: middle;
+  }
+
+  .mono { font-family: var(--mono); font-size: 12px; }
+
+  .tag {
+    display: inline-block;
+    background: rgba(79,142,247,.15);
+    border: 1px solid rgba(79,142,247,.3);
+    border-radius: 6px;
+    color: var(--accent);
+    font-size: 11px;
+    font-family: var(--mono);
+    padding: 3px 8px;
+    white-space: nowrap;
+  }
+
+  .tag.green {
+    background: rgba(79,247,158,.1);
+    border-color: rgba(79,247,158,.3);
+    color: var(--green);
+  }
+
+  .tag.yellow {
+    background: rgba(247,201,79,.1);
+    border-color: rgba(247,201,79,.3);
+    color: var(--accent2);
+  }
+
+  .del-btn {
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--muted);
+    font-size: 16px;
+    padding: 4px 8px;
+    border-radius: 6px;
+  }
+  .del-btn:hover { border-color: var(--red); color: var(--red); }
+
+  .empty-state {
+    text-align: center;
+    padding: 48px 24px;
+    color: var(--muted);
+  }
+
+  .empty-state .icon { font-size: 36px; margin-bottom: 12px; }
+
+  /* CONFLICT WARNING */
+  .conflict-banner {
+    background: rgba(247,79,79,.1);
+    border: 1px solid rgba(247,79,79,.4);
+    border-radius: 8px;
+    color: var(--red);
+    font-size: 13px;
+    padding: 10px 16px;
+    margin-top: 12px;
+    display: none;
+  }
+
+  .conflict-banner.show { display: block; }
+
+  /* FOOTER */
+  .export-bar {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .export-info { font-size: 13px; color: var(--muted); }
+  .export-info strong { color: var(--text); }
+
+  @media (max-width: 600px) {
+    .form-grid { grid-template-columns: 1fr; }
+    header { padding: 12px 16px; }
+    .container { padding: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">SES<span>.</span>PLANNER</div>
+  <div class="subtitle">AIS Play Booking Feed Planner</div>
+</header>
+
+<div class="container">
+
+  <!-- FORM -->
+  <div class="form-card">
+    <h2>เพิ่มรายการงาน</h2>
+
+    <div class="form-grid">
+
+      <div class="form-group">
+        <label>วันที่</label>
+        <input type="date" id="f-date">
+      </div>
+
+      <div class="form-group">
+        <label>ประเภทงาน</label>
+        <select id="f-event" onchange="onEventChange()">
+          <option value="">-- เลือกงาน --</option>
+          <optgroup label="🎾 Tennis">
+            <option value="ATP_Feed01">ATP — Feed 01 (World Feed)</option>
+            <option value="ATP_Feed02">ATP — Feed 02 (A Court)</option>
+            <option value="ATP_Feed03">ATP — Feed 03 (B Court)</option>
+            <option value="ATP_Feed04">ATP — Feed 04 (C Court)</option>
+            <option value="ATP_Feed05">ATP — Feed 05 (D Court)</option>
+            <option value="ATP_Feed06">ATP — Feed 06 (E Court)</option>
+            <option value="ATP_Feed07">ATP — Feed 07 (F Court)</option>
+          </optgroup>
+          <optgroup label="⛳ PGA Tour SRT">
+            <option value="PGA_FeedA">PGA SRT — Feed A (World Feed)</option>
+            <option value="PGA_FeedB">PGA SRT — Feed B (Main Feed)</option>
+            <option value="PGA_FeedC">PGA SRT — Feed C (Marquee)</option>
+            <option value="PGA_FeedD">PGA SRT — Feed D (Featured Groups)</option>
+            <option value="PGA_FeedF">PGA SRT — Feed F (Champions)</option>
+            <option value="PGA_FeedH">PGA SRT — Feed H (Highlights)</option>
+          </optgroup>
+          <optgroup label="🛰️ SAT Feeds">
+            <option value="SAT_Truist">SAT — Truist Championship</option>
+            <option value="SAT_ONEflight">SAT — ONEflight / CJ CUP</option>
+            <option value="SAT_DP">SAT — DP World Tour</option>
+            <option value="SAT_LPGA">SAT — LPGA Tour</option>
+          </optgroup>
+          <optgroup label="🏀 NBA / WNBA">
+            <option value="NBA_G1">NBA / WNBA — Game 1 ของวัน</option>
+            <option value="NBA_G2">NBA / WNBA — Game 2 ของวัน</option>
+          </optgroup>
+          <optgroup label="🌐 Golf อื่นๆ">
+            <option value="DP_Tour">DP World Tour (SRT)</option>
+            <option value="Insperity_F">Insperity Invitational — Feed F</option>
+          </optgroup>
+          <optgroup label="🥊 Muay Thai">
+            <option value="MuayThai">Muay Thai (Rajadamnern / Kiatpetch ฯลฯ)</option>
+          </optgroup>
+          <optgroup label="⚽ Football">
+            <option value="Football">Southeast Asian Football</option>
+          </optgroup>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Column H (ช่อง)</label>
+        <select id="f-h">
+          <option value="">ไม่มี / ไม่แน่ใจ</option>
+          <option value="TV_05">TV_05</option>
+          <option value="SC_01">SC_01</option>
+          <option value="SC_02">SC_02</option>
+          <option value="SC_03">SC_03</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>เวลาเริ่ม GMT</label>
+        <input type="time" id="f-start" step="60">
+      </div>
+
+      <div class="form-group">
+        <label>เวลาจบ GMT</label>
+        <input type="time" id="f-end" step="60">
+      </div>
+
+      <div class="form-group">
+        <label>ชื่องาน / SES No.</label>
+        <input type="text" id="f-name" placeholder="เช่น ATP Rome, 487373">
+      </div>
+
+    </div>
+
+    <!-- MACHINE SUGGESTION -->
+    <div style="margin-bottom:16px;">
+      <label style="display:block;margin-bottom:6px;">เครื่องที่แนะนำ</label>
+      <div class="machine-display empty" id="machine-dest">เลือกประเภทงานก่อน</div>
+    </div>
+    <div style="margin-bottom:16px;">
+      <label style="display:block;margin-bottom:6px;">Receiver</label>
+      <div class="machine-display empty" id="machine-recv">—</div>
+    </div>
+
+    <div id="conflict-banner" class="conflict-banner">
+      ⚠️ ตรวจพบเครื่องซ้ำ! เครื่องนี้กำลังใช้งานในช่วงเวลาเดียวกัน กรุณาตรวจสอบ
+    </div>
+
+    <div class="btn-row">
+      <button class="btn-add" onclick="addRow()">+ เพิ่มลิสต์</button>
+      <button class="btn-clear" onclick="clearForm()">ล้างฟอร์ม</button>
+    </div>
+  </div>
+
+  <!-- TABLE -->
+  <div class="table-card">
+    <div class="table-header">
+      <h2>รายการที่วางแพลนแล้ว</h2>
+      <span class="count-badge" id="count-badge">0 รายการ</span>
+    </div>
+    <div class="table-wrap">
+      <table id="main-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>วันที่</th>
+            <th>งาน / SES</th>
+            <th>เวลา GMT</th>
+            <th>Destination</th>
+            <th>Receiver</th>
+            <th>สถานะ</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="table-body">
+          <tr id="empty-row">
+            <td colspan="8">
+              <div class="empty-state">
+                <div class="icon">📋</div>
+                <div>ยังไม่มีรายการ — เพิ่มงานจากฟอร์มด้านบน</div>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- EXPORT -->
+  <div class="export-bar">
+    <div class="export-info">
+      ตรวจสอบรายการแล้ว กดดาวน์โหลดได้เลย<br>
+      <strong>ไฟล์จะถูก generate ใหม่ทุกครั้งที่กด</strong>
+    </div>
+    <button class="btn-export" onclick="exportExcel()" id="btn-export" disabled>
+      ⬇ ดาวน์โหลด Excel
+    </button>
+  </div>
+
+</div>
+
+<script>
+// ===== DEVICE DATABASE =====
+const DEVICES = {
+  ATP_Feed01: { dest: 'Main: AIS Play A',              recv: 'Nimbra1 SC : Port 2008' },
+  ATP_Feed02: { dest: 'Main: AIS Play B',              recv: 'Nimbra1 SC : Port 2009' },
+  ATP_Feed03: { dest: 'Main: AIS Play C',              recv: 'Nimbra1 SC : Port 2010' },
+  ATP_Feed04: { dest: 'Main: NimbraSC3#1',             recv: 'NimbraSC3#1 port 2006' },
+  ATP_Feed05: { dest: 'Main: NimbraSC3#2',             recv: 'NimbraSC3#2 port 2007' },
+  ATP_Feed06: { dest: 'Main: NimbraSC3#3',             recv: 'NimbraSC3#3 port 2008' },
+  ATP_Feed07: { dest: 'Main: NimbraSC3#4',             recv: 'NimbraSC3#4 port 2009' },
+
+  PGA_FeedA:  { dest: 'Main: IPSwitch_AIS-Thai_02_BU', recv: 'Nimbra2-1 SC : Port 2007',         tv5: { dest: 'Main: IPSwitch_AIS-Thai_01_Main', recv: 'TitanEdge-2 TV5 : Port 4051' } },
+  PGA_FeedB:  { dest: 'Main: IPSwitch_AIS-Thai_01_BU', recv: 'Nimbra1 SC : 110.49.54.226:2007',  tv5: { dest: 'Main: IPSwitch_AIS-Thai_05_Main', recv: 'TitanEdge-2 TV5 : Port 4055' } },
+  PGA_FeedC:  { dest: 'Main: IPSwitch_AIS-Thai_03_BU', recv: 'Nimbra2-2 SC : Port 2008' },
+  PGA_FeedD:  { dest: 'Main: IPSwitch_AIS-Thai_04_BU', recv: 'Nimbra2-3 SC : Port 2009' },
+  PGA_FeedF:  { dest: 'Main: NimbraSC3#4',             recv: 'NimbraSC3#4 port 2009' },
+  PGA_FeedH:  { dest: 'Main: IPSwitch_AIS-Thai_01_BU', recv: 'Nimbra1 SC : 110.49.54.226:2007',  tv5: { dest: 'Main: IPSwitch_AIS-Thai_03_Main', recv: 'TitanEdge-2 TV5 : Port 4053' } },
+
+  SAT_Truist:   { dest: 'Satellite 1 PGA',     recv: 'NS2000 + RX8200 set 1 IRDSC11' },
+  SAT_ONEflight:{ dest: 'Satellite 2 PGA',     recv: 'NS2000 + RX8200 set 2' },
+  SAT_DP:       { dest: 'Satellite 3 DP',      recv: 'NS2000 + RX8200 set 3 IRDSC14' },
+  SAT_LPGA:     { dest: 'Satellite 4 LPGA',    recv: 'NS2000 + RX8200 set 4 IRDSC13' },
+
+  NBA_G1: { dest: 'NBA1 Main', recv: 'NImbra1-1 SC : Port 40040' },
+  NBA_G2: { dest: 'NBA2 Main', recv: 'NImbra1-3 SC : Port 40090' },
+
+  DP_Tour:     { dest: 'AISPLAY Nimbra3-1 DP', recv: 'Nimbra3 SC : 63.216.45.100:11666' },
+  Insperity_F: { dest: 'Main: NimbraSC3#4',    recv: 'NimbraSC3#4 port 2009' },
+
+  MuayThai: { dest: 'ยังไม่แน่ใจ', recv: '—', uncertain: true },
+  Football:  { dest: 'ยังไม่แน่ใจ', recv: '—', uncertain: true },
+};
+
+let rows = [];
+let suggestedDest = '';
+let suggestedRecv = '';
+
+function onEventChange() {
+  const eventKey = document.getElementById('f-event').value;
+  const hVal     = document.getElementById('f-h').value;
+  const destEl   = document.getElementById('machine-dest');
+  const recvEl   = document.getElementById('machine-recv');
+
+  if (!eventKey) {
+    destEl.className = 'machine-display empty';
+    destEl.textContent = 'เลือกประเภทงานก่อน';
+    recvEl.className = 'machine-display empty';
+    recvEl.textContent = '—';
+    suggestedDest = ''; suggestedRecv = '';
+    return;
+  }
+
+  const dev = DEVICES[eventKey];
+  if (!dev) return;
+
+  let chosen = (hVal === 'TV_05' && dev.tv5) ? dev.tv5 : dev;
+  suggestedDest = chosen.dest;
+  suggestedRecv = chosen.recv;
+
+  if (dev.uncertain) {
+    destEl.className = 'machine-display warning';
+    recvEl.className = 'machine-display warning';
+  } else {
+    destEl.className = 'machine-display confirmed';
+    recvEl.className = 'machine-display confirmed';
+  }
+
+  destEl.textContent = suggestedDest;
+  recvEl.textContent = suggestedRecv;
+
+  checkConflict();
+}
+
+document.getElementById('f-h').addEventListener('change', onEventChange);
+document.getElementById('f-start').addEventListener('change', checkConflict);
+document.getElementById('f-end').addEventListener('change', checkConflict);
+document.getElementById('f-date').addEventListener('change', checkConflict);
+
+function toMinutes(t) {
+  if (!t) return null;
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
+}
+
+function checkConflict() {
+  const date  = document.getElementById('f-date').value;
+  const start = toMinutes(document.getElementById('f-start').value);
+  const end   = toMinutes(document.getElementById('f-end').value);
+  const banner = document.getElementById('conflict-banner');
+
+  if (!suggestedDest || !date || start === null || end === null) {
+    banner.classList.remove('show');
+    return;
+  }
+
+  const conflict = rows.some(r =>
+    r.date === date &&
+    r.dest === suggestedDest &&
+    r.startMin !== null && r.endMin !== null &&
+    start < r.endMin && end > r.startMin
+  );
+
+  banner.classList.toggle('show', conflict);
+}
+
+function addRow() {
+  const date   = document.getElementById('f-date').value;
+  const name   = document.getElementById('f-name').value.trim();
+  const start  = document.getElementById('f-start').value;
+  const end    = document.getElementById('f-end').value;
+  const eventKey = document.getElementById('f-event').value;
+
+  if (!date || !eventKey || !suggestedDest) {
+    alert('กรุณาเลือก วันที่ และ ประเภทงาน ก่อนนะครับ');
+    return;
+  }
+
+  rows.push({
+    id: Date.now(),
+    date, name,
+    start, end,
+    startMin: toMinutes(start),
+    endMin:   toMinutes(end),
+    dest: suggestedDest,
+    recv: suggestedRecv,
+    uncertain: DEVICES[eventKey]?.uncertain || false,
+  });
+
+  renderTable();
+  checkConflict();
+}
+
+function deleteRow(id) {
+  rows = rows.filter(r => r.id !== id);
+  renderTable();
+}
+
+function renderTable() {
+  const tbody = document.getElementById('table-body');
+  const badge = document.getElementById('count-badge');
+  const exportBtn = document.getElementById('btn-export');
+
+  badge.textContent = `${rows.length} รายการ`;
+  exportBtn.disabled = rows.length === 0;
+
+  if (rows.length === 0) {
+    tbody.innerHTML = `<tr id="empty-row"><td colspan="8">
+      <div class="empty-state"><div class="icon">📋</div>
+      <div>ยังไม่มีรายการ — เพิ่มงานจากฟอร์มด้านบน</div></div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = rows.map((r, i) => {
+    const timeStr = (r.start && r.end) ? `${r.start} – ${r.end}` : '—';
+    const tagClass = r.uncertain ? 'tag yellow' : 'tag green';
+    const status = r.uncertain ? '⚠ ยังไม่แน่ใจ' : '✓ OK';
+    return `<tr>
+      <td style="color:var(--muted);font-size:12px;">${i+1}</td>
+      <td>${r.date}</td>
+      <td>${r.name || '<span style="color:var(--muted)">—</span>'}</td>
+      <td class="mono">${timeStr}</td>
+      <td><span class="tag">${r.dest}</span></td>
+      <td class="mono" style="font-size:11px;color:var(--muted)">${r.recv}</td>
+      <td><span class="${tagClass}">${status}</span></td>
+      <td><button class="del-btn" onclick="deleteRow(${r.id})" title="ลบ">✕</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function clearForm() {
+  ['f-date','f-start','f-end','f-name'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f-event').value = '';
+  document.getElementById('f-h').value = '';
+  document.getElementById('machine-dest').className = 'machine-display empty';
+  document.getElementById('machine-dest').textContent = 'เลือกประเภทงานก่อน';
+  document.getElementById('machine-recv').className = 'machine-display empty';
+  document.getElementById('machine-recv').textContent = '—';
+  document.getElementById('conflict-banner').classList.remove('show');
+  suggestedDest = ''; suggestedRecv = '';
+}
+
+function exportExcel() {
+  if (rows.length === 0) return;
+
+  const headers = ['วันที่', 'ชื่องาน / SES No.', 'เวลาเริ่ม GMT', 'เวลาจบ GMT', 'Destination', 'Receiver Main', 'หมายเหตุ'];
+
+  const data = rows.map(r => [
+    r.date,
+    r.name || '',
+    r.start || '',
+    r.end || '',
+    r.dest,
+    r.recv,
+    r.uncertain ? 'ยังไม่แน่ใจ — กรุณาตรวจสอบ' : '',
+  ]);
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
+
+  // Column widths
+  ws['!cols'] = [
+    {wch:12},{wch:28},{wch:14},{wch:14},{wch:38},{wch:34},{wch:30}
+  ];
+
+  // Style header row
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  for (let C = range.s.c; C <= range.e.c; C++) {
+    const addr = XLSX.utils.encode_cell({r:0, c:C});
+    if (!ws[addr]) continue;
+    ws[addr].s = {
+      fill: { fgColor: { rgb: '1a1d27' } },
+      font: { bold: true, color: { rgb: 'FFFFFF' } },
+    };
+  }
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Booking Plan');
+
+  const today = new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb, `SES_Booking_Plan_${today}.xlsx`);
+}
+</script>
+</body>
+</html>
